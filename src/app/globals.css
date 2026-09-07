@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-grotesk), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+/* dashboard shell: light by default, .dark flips */
+:root {
+  --bg: #f5f5f4;
+  --surface: #ffffff;
+  --surface2: #fafaf9;
+  --line: #e7e5e4;
+  --ink: #1c1c1f;
+  --muted: #6f7078;
+  --brand: #b45309;
+  --brand-ink: #ffffff;
+}
+.dark {
+  --bg: #0d0e11;
+  --surface: #16181d;
+  --surface2: #1c1f25;
+  --line: #292c33;
+  --ink: #e9eaee;
+  --muted: #9195a1;
+  --brand: #ffb800;
+  --brand-ink: #1a1400;
+}
+/* marketing surfaces are always dark */
+.marketing {
+  --bg: #0a0a0c;
+  --surface: #121215;
+  --surface2: #17171b;
+  --line: #26262c;
+  --ink: #f0f0f2;
+  --muted: #9b9ca6;
+  --brand: #ffb800;
+  --brand-ink: #1a1400;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+::selection {
+  background: #ffb800;
+  color: #1a1400;
+}

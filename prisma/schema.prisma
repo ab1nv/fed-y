@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  DISPATCHER
+  DRIVER
+}
+
+enum ShipmentStatus {
+  CREATED
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  EXCEPTION
+  CANCELLED
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ON_ROUTE
+  MAINTENANCE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  username     String   @unique
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(DISPATCHER)
+  createdAt    DateTime @default(now())
+  driver       Driver?
+}
+
+model Driver {
+  id        String     @id @default(cuid())
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String     @unique
+  phone     String
+  vehicle   Vehicle?   @relation(fields: [vehicleId], references: [id])
+  vehicleId String?
+  shipments Shipment[]
+}
+
+model Vehicle {
+  id         String        @id @default(cuid())
+  plateNo    String        @unique
+  type       String
+  capacityKg Int
+  status     VehicleStatus @default(AVAILABLE)
+  drivers    Driver[]
+  createdAt  DateTime      @default(now())
+}
+
+model Warehouse {
+  id        String          @id @default(cuid())
+  name      String
+  code      String          @unique
+  address   String
+  city      String
+  lat       Float
+  lng       Float
+  inventory InventoryItem[]
+  originOf  Shipment[]      @relation("origin")
+  createdAt DateTime        @default(now())
+}
+
+model InventoryItem {
+  id          String    @id @default(cuid())
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  warehouseId String
+  sku         String
+  name        String
+  quantity    Int
+  reorderAt   Int       @default(20)
+}
+
+model Customer {
+  id        String     @id @default(cuid())
+  name      String
+  email     String
+  phone     String
+  city      String
+  shipments Shipment[]
+  createdAt DateTime   @default(now())
+}
+
+model Shipment {
+  id                 String           @id @default(cuid())
+  trackingCode       String           @unique
+  customer           Customer         @relation(fields: [customerId], references: [id])
+  customerId         String
+  origin             Warehouse        @relation("origin", fields: [originId], references: [id])
+  originId           String
+  destinationAddress String
+  destinationCity    String
+  destLat            Float?
+  destLng            Float?
+  weightKg           Float
+  status             ShipmentStatus   @default(CREATED)
+  driver             Driver?          @relation(fields: [driverId], references: [id])
+  driverId           String?
+  promisedDate       DateTime
+  events             ShipmentEvent[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model ShipmentEvent {
+  id         String         @id @default(cuid())
+  shipment   Shipment       @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  shipmentId String
+  status     ShipmentStatus
+  note       String?
+  lat        Float?
+  lng        Float?
+  createdAt  DateTime       @default(now())
+}
