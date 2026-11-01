@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
+import { getDashboardData } from "@/lib/dashboard-query";
 import { requireSession } from "@/lib/session";
 import { computeRisk } from "@/lib/risk";
 import type { ShipmentStatus } from "@/lib/state-machine";
@@ -9,62 +9,43 @@ import { DeliveriesChart, StatusDonut } from "@/components/charts";
 
 export const metadata = { title: "Overview — FedY" };
 
-const ACTIVE = ["ASSIGNED", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "EXCEPTION"] as const;
-
 export default async function DashboardPage() {
   await requireSession(["DISPATCHER", "ADMIN"]);
   const now = new Date();
   const monthAgo = new Date(now.getTime() - 30 * 86400_000);
+  const firstDay = new Date(startOfIndiaDay(now).getTime() - 13 * 86400_000);
 
-  const [activeCount, exceptions, delivered, lateDelivered, mix, recentEvents] = await Promise.all([
-    db.shipment.count({ where: { status: { in: [...ACTIVE] } } }),
-    db.shipment.count({ where: { status: "EXCEPTION" } }),
-    db.shipmentEvent.count({ where: { status: "DELIVERED", createdAt: { gte: monthAgo } } }),
-    db.shipmentEvent.count({
-      where: {
-        status: "DELIVERED",
-        createdAt: { gte: monthAgo },
-        note: { contains: "past" },
-      },
-    }),
-    db.shipment.groupBy({ by: ["status"], where: { status: { in: [...ACTIVE] } }, _count: { _all: true } }),
-    db.shipmentEvent.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 8,
-      include: { shipment: { select: { trackingCode: true, id: true } } },
-    }),
-  ]);
+  const { statusCounts, delivered: deliveredEvents, recent: recentEvents, active } =
+    await getDashboardData(monthAgo.toISOString());
 
-  const daily = await Promise.all(
-    Array.from({ length: 14 }, async (_, i) => {
-      const start = new Date(startOfIndiaDay(now).getTime() - (13 - i) * 86400_000);
-      const end = new Date(start.getTime() + 86400_000);
-      const [all, late] = await Promise.all([
-        db.shipmentEvent.count({ where: { status: "DELIVERED", createdAt: { gte: start, lt: end } } }),
-        db.shipmentEvent.count({
-          where: {
-            status: "DELIVERED",
-            createdAt: { gte: start, lt: end },
-            note: { contains: "past" },
-          },
-        }),
-      ]);
-      return { day: fmtDate(start), delivered: all - late, late };
-    }),
-  );
+  const activeCount = statusCounts.reduce((sum, m) => sum + m.n, 0);
+  const exceptions = statusCounts.find((m) => m.status === "EXCEPTION")?.n ?? 0;
+  const delivered = deliveredEvents.length;
+  const lateDelivered = deliveredEvents.filter((e) => e.note?.includes("past")).length;
 
-  const atRisk = (
-    await db.shipment.findMany({
-      where: { status: { in: [...ACTIVE] } },
-      include: {
-        driver: { include: { user: { select: { name: true } } } },
-        events: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
-      },
-    })
-  )
+  // One query for 30 days of deliveries, bucketed into the 14-day chart here.
+  const buckets = Array.from({ length: 14 }, (_, i) => {
+    const start = new Date(firstDay.getTime() + i * 86400_000);
+    return { start, key: start.getTime(), delivered: 0, late: 0 };
+  });
+  const byDay = new Map(buckets.map((b) => [b.key, b]));
+  for (const event of deliveredEvents) {
+    const bucket = byDay.get(startOfIndiaDay(new Date(event.createdAt)).getTime());
+    if (!bucket) continue;
+    if (event.note?.includes("past")) bucket.late += 1;
+    else bucket.delivered += 1;
+  }
+  const daily = buckets.map((b) => ({ day: fmtDate(b.start), delivered: b.delivered, late: b.late }));
+
+  const atRisk = active
     .map((s) => ({
       s,
-      risk: computeRisk(s.status as ShipmentStatus, s.events[0]?.createdAt ?? null, s.promisedDate, now),
+      risk: computeRisk(
+        s.status as ShipmentStatus,
+        s.lastEventAt ? new Date(s.lastEventAt) : null,
+        new Date(s.promisedDate),
+        now,
+      ),
     }))
     .filter((x) => x.risk.level !== "low")
     .sort((a, b) => b.risk.score - a.risk.score)
@@ -102,7 +83,7 @@ export default async function DashboardPage() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <DeliveriesChart data={daily} />
-        <StatusDonut data={mix.map((m) => ({ status: m.status, n: m._count._all }))} />
+        <StatusDonut data={statusCounts.map((m) => ({ status: m.status, n: m.n }))} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -124,7 +105,7 @@ export default async function DashboardPage() {
                     </p>
                   </Link>
                   <span className="hidden text-xs text-muted sm:block">
-                    {s.driver?.user.name ?? "unassigned"}
+                    {s.driverName ?? "unassigned"}
                   </span>
                   <StatusBadge status={s.status} />
                   <RiskBadge level={risk.level} />
@@ -142,11 +123,11 @@ export default async function DashboardPage() {
                 <span className={cx("absolute left-0 top-1.5 size-[11px] rounded-full border-2 border-bg", e.status === "EXCEPTION" ? "bg-red-500" : e.status === "DELIVERED" ? "bg-emerald-500" : "bg-brand")} />
                 <p className="text-sm">
                   <span className="capitalize">{e.status.replaceAll("_", " ").toLowerCase()}</span>{" "}
-                  <Link href={`/dashboard/shipments/${e.shipment.id}`} className="font-mono text-[13px] text-brand underline-offset-2 hover:underline">
-                    {e.shipment.trackingCode}
+                  <Link href={`/dashboard/shipments/${e.shipmentId}`} className="font-mono text-[13px] text-brand underline-offset-2 hover:underline">
+                    {e.trackingCode}
                   </Link>
                 </p>
-                <p className="text-xs text-muted">{fmtDateTime(e.createdAt)}{e.note ? ` — ${e.note}` : ""}</p>
+                <p className="text-xs text-muted">{fmtDateTime(new Date(e.createdAt))}{e.note ? ` — ${e.note}` : ""}</p>
               </li>
             ))}
           </ol>

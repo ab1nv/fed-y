@@ -162,8 +162,7 @@ export function RiskBadge({ level }: { level: "none" | "low" | "medium" | "high"
   );
 }
 
-export function Logo({ className, href = "/" }: { className?: string; href?: string }) {
-  return (
+export function Logo({ className, href = "/" }: { className?: string; href?: string }) {  return (
     <Link href={href} className={cx("font-display text-xl font-bold tracking-tight", className)}>
       Fed<span className="text-brand">Y</span>
       <span className="sr-only"> — home</span>

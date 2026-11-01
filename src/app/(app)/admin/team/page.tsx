@@ -9,6 +9,7 @@ const ROLE_CLS: Record<string, string> = {
   ADMIN: "bg-purple-500/12 text-purple-700 dark:text-purple-400",
   DISPATCHER: "bg-sky-500/12 text-sky-700 dark:text-sky-400",
   DRIVER: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+  CUSTOMER: "bg-amber-500/12 text-amber-700 dark:text-amber-400",
 };
 
 export default async function TeamPage() {

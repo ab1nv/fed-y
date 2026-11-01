@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/ui";
+import { PendingButton } from "@/components/pending-button";
 
 export const metadata = { title: "Track a shipment — FedY" };
 export const dynamic = "force-dynamic";
@@ -34,9 +35,12 @@ export default function TrackHome() {
               aria-label="Tracking code"
               className="h-12 flex-1 rounded-xl border border-line bg-surface px-4 font-mono text-sm uppercase tracking-widest text-ink outline-none placeholder:text-muted/60 focus:border-brand/60 focus:ring-2 focus:ring-brand/25"
             />
-            <button className="h-12 rounded-xl bg-brand px-6 text-sm font-semibold text-brand-ink transition hover:opacity-90">
+            <PendingButton
+              pendingLabel="Looking…"
+              className="h-12 rounded-xl bg-brand px-6 text-sm font-semibold text-brand-ink transition hover:opacity-90"
+            >
               Track
-            </button>
+            </PendingButton>
           </form>
           <p className="mt-4 text-xs text-muted">
             Tracking codes are on your confirmation email. Example from the demo dataset:{" "}

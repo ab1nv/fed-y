@@ -5,7 +5,7 @@ test.describe("auth and roles", () => {
   test("login page advertises every demo profile", async ({ page }) => {
     await page.goto("/login");
     await expect(page.getByRole("region", { name: "Demo accounts" })).toBeVisible();
-    for (const role of ["Admin", "Dispatcher", "Driver"]) {
+    for (const role of ["Admin", "Dispatcher", "Driver", "Customer"]) {
       await expect(page.getByRole("button", { name: new RegExp(role) })).toBeVisible();
     }
     await expect(page.getByText("password123").first()).toBeVisible();
@@ -50,14 +50,14 @@ test.describe("auth and roles", () => {
     await expect(page).toHaveURL(/\/driver$/);
   });
 
-  test("dashboard theme toggle switches between light and dark", async ({ page }) => {
+  test("dashboard defaults to dark and the toggle works", async ({ page }) => {
     await login(page, "admin");
     const html = page.locator("html");
-    await expect(html).toHaveClass(/light/);
-    await page.getByRole("button", { name: "Toggle colour theme" }).click();
     await expect(html).toHaveClass(/dark/);
     await page.getByRole("button", { name: "Toggle colour theme" }).click();
     await expect(html).toHaveClass(/light/);
+    await page.getByRole("button", { name: "Toggle colour theme" }).click();
+    await expect(html).toHaveClass(/dark/);
   });
 
   test("opens a driver account and logs out", async ({ page }) => {

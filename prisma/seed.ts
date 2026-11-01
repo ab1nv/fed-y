@@ -150,6 +150,19 @@ async function main() {
     );
   }
 
+  // Demo customer portal login, linked to the first customer record.
+  const portalCustomer = customers[0];
+  const portalUser = await db.user.create({
+    data: {
+      name: portalCustomer.name,
+      username: "customer",
+      email: portalCustomer.email,
+      passwordHash: pw,
+      role: "CUSTOMER",
+    },
+  });
+  await db.customer.update({ where: { id: portalCustomer.id }, data: { userId: portalUser.id } });
+
   const warehouseList = Object.values(warehouses);
   const driverList = Object.values(drivers);
   const now = Date.now();
@@ -250,7 +263,7 @@ async function main() {
   }
 
   console.log(
-    `Seeded ${created} shipments, ${customers.length} customers, 4 warehouses, 5 vehicles, 3 drivers, 6 users`,
+    `Seeded ${created} shipments, ${customers.length} customers, 4 warehouses, 5 vehicles, 3 drivers, 7 users`,
   );
 
   // Give each driver a plausible last-known position so live tracking has
@@ -273,7 +286,7 @@ async function main() {
     });
   }
 
-  console.log("Logins — admin/password123 (ADMIN) · priya|kabir/password123 (DISPATCHER) · ravi|imran|deepa/password123 (DRIVER)");
+  console.log("Logins — admin/password123 (ADMIN) · priya|kabir/password123 (DISPATCHER) · ravi|imran|deepa/password123 (DRIVER) · customer/password123 (CUSTOMER)");
   console.log("Demo tracking — /track shows a live example from the seeded network");
 }
 

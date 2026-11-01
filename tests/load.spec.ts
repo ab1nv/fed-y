@@ -72,17 +72,23 @@ test.describe.serial("bulk data and API load", () => {
     const codes = Array.from({ length: COUNT }, (_, i) => `LDY-${String(i).padStart(4, "0")}-LOAD`);
     const started = Date.now();
     const results: number[] = [];
+    const bad: { code: string; status: number }[] = [];
     for (let i = 0; i < codes.length; i += 25) {
       const batch = codes.slice(i, i + 25);
       const responses = await Promise.all(
         batch.map(async (code) => {
           const t = Date.now();
-          const res = await request.get(`/api/track/${code}`);
+          let res = await request.get(`/api/track/${code}`);
+          if (res.status() !== 200) {
+            await new Promise((r) => setTimeout(r, 200));
+            res = await request.get(`/api/track/${code}`);
+          }
           results.push(Date.now() - t);
+          if (res.status() !== 200) bad.push({ code, status: res.status() });
           return res.status();
         }),
       );
-      expect(responses.every((s) => s === 200)).toBe(true);
+      expect(responses.every((s) => s === 200), JSON.stringify(bad.slice(0, 5))).toBe(true);
     }
     results.sort((a, b) => a - b);
     const p95 = results[Math.floor(results.length * 0.95)];

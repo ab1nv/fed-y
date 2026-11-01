@@ -2,6 +2,7 @@ import { requireSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { logoutAction } from "@/lib/auth-actions";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { PendingButton } from "@/components/pending-button";
 
 export const metadata = { title: "My stops — FedY" };
 
@@ -21,9 +22,9 @@ export default async function DriverLayout({ children }: { children: React.React
         </span>
         <ThemeToggle />
         <form action={logoutAction}>
-          <button className="rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted transition hover:text-ink">
+          <PendingButton className="rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted transition hover:text-ink" pendingLabel="…">
             Exit
-          </button>
+          </PendingButton>
         </form>
       </header>
       {children}

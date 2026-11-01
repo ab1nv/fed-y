@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { logoutAction } from "@/lib/auth-actions";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { PendingButton } from "@/components/pending-button";
 import { cx } from "@/components/ui";
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; roles: string[] };
@@ -92,9 +93,12 @@ export function Shell({
           </div>
         </div>
         <form action={logoutAction}>
-          <button className="w-full rounded-lg border border-line py-1.5 text-xs font-medium text-muted transition hover:text-ink">
+          <PendingButton
+            pendingLabel="Signing out…"
+            className="w-full rounded-lg border border-line py-1.5 text-xs font-medium text-muted transition hover:text-ink"
+          >
             Sign out
-          </button>
+          </PendingButton>
         </form>
       </div>
     </div>

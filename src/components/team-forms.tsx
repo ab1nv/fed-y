@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { createTeamUserAction, removeTeamUserAction } from "@/lib/fleet-actions";
 import type { FormState } from "@/lib/auth-actions";
+import { ActionForm } from "@/components/action-form";
 import { Button, Field, Input, Select } from "@/components/ui";
 
 export function AddTeamUserForm() {
@@ -38,16 +39,14 @@ export function AddTeamUserForm() {
 
 export function RemoveUserButton({ id, name }: { id: string; name: string }) {
   return (
-    <form
+    <ActionForm
       action={removeTeamUserAction}
-      onSubmit={(e) => {
-        if (!confirm(`Remove ${name} and all their data?`)) e.preventDefault();
-      }}
-    >
-      <input type="hidden" name="id" value={id} />
-      <Button variant="ghost" size="sm" type="submit" className="text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-400">
-        Remove
-      </Button>
-    </form>
+      hidden={{ id }}
+      submitLabel="Remove"
+      pendingLabel="Removing…"
+      variant="ghost"
+      confirmText={`Remove ${name} and all their data?`}
+      buttonClassName="text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-400"
+    />
   );
 }

@@ -28,6 +28,13 @@ const DEMO_ACCOUNTS = [
     blurb: "Mobile stops + GPS",
     key: "driver",
   },
+  {
+    username: "customer",
+    name: "Ananya Desai",
+    role: "Customer",
+    blurb: "My parcels + live map",
+    key: "customer",
+  },
 ] as const;
 
 const DEMO_PASSWORD = "password123";

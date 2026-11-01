@@ -55,7 +55,9 @@ export async function getSession(): Promise<Session | null> {
 }
 
 export function homeFor(role: Role): string {
-  return role === "DRIVER" ? "/driver" : "/dashboard";
+  if (role === "DRIVER") return "/driver";
+  if (role === "CUSTOMER") return "/my";
+  return "/dashboard";
 }
 
 export async function requireSession(roles?: Role[]): Promise<Session> {

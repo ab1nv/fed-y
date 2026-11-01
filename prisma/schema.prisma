@@ -16,6 +16,7 @@ model User {
   role         String   @default("DISPATCHER")
   createdAt    DateTime @default(now())
   driver       Driver?
+  customer     Customer?
 }
 
 model Driver {
@@ -71,6 +72,8 @@ model Customer {
   email     String
   phone     String
   city      String
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?    @unique
   shipments Shipment[]
   createdAt DateTime   @default(now())
 }

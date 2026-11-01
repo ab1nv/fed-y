@@ -4,7 +4,8 @@ import { nextActions, type ShipmentStatus } from "@/lib/state-machine";
 import { addEventAction } from "@/lib/shipment-actions";
 import { startOfIndiaDay } from "@/lib/time";
 import { LocationPinger } from "@/components/location-pinger";
-import { Button, Card, StatusBadge, cx, fmtDateTime, fmtWeight } from "@/components/ui";
+import { ActionForm } from "@/components/action-form";
+import { Card, StatusBadge, cx, fmtDateTime, fmtWeight } from "@/components/ui";
 
 export const metadata = { title: "My stops — FedY" };
 
@@ -74,27 +75,30 @@ export default async function DriverPage() {
             )}
             <div className="mt-4 grid grid-cols-2 gap-2">
               {actions.map((a) => (
-                <form key={a} action={addEventAction} className="contents">
-                  <input type="hidden" name="shipmentId" value={s.id} />
-                  <input type="hidden" name="status" value={a} />
-                  <input type="hidden" name="note" value={a === "DELIVERED" ? "Delivered by driver" : ""} />
-                  <Button
-                    size="sm"
-                    type="submit"
-                    variant={a === "EXCEPTION" ? "danger" : a === "DELIVERED" ? "primary" : "secondary"}
-                    className="min-h-11"
-                  >
-                    {a === "EXCEPTION" ? "Report issue" : a.replaceAll("_", " ").toLowerCase()}
-                  </Button>
-                </form>
+                <ActionForm
+                  key={a}
+                  action={addEventAction}
+                  hidden={{
+                    shipmentId: s.id,
+                    status: a,
+                    note: a === "DELIVERED" ? "Delivered by driver" : "",
+                  }}
+                  submitLabel={a === "EXCEPTION" ? "Report issue" : a.replaceAll("_", " ").toLowerCase()}
+                  pendingLabel="Saving…"
+                  variant={a === "EXCEPTION" ? "danger" : a === "DELIVERED" ? "primary" : "secondary"}
+                  className="contents"
+                  buttonClassName="min-h-11"
+                />
               ))}
               {s.status === "EXCEPTION" && (
-                <form action={addEventAction} className="contents">
-                  <input type="hidden" name="shipmentId" value={s.id} />
-                  <input type="hidden" name="status" value="IN_TRANSIT" />
-                  <input type="hidden" name="note" value="Issue resolved on site" />
-                  <Button size="sm" type="submit" className="min-h-11 col-span-2">Back on route</Button>
-                </form>
+                <ActionForm
+                  action={addEventAction}
+                  hidden={{ shipmentId: s.id, status: "IN_TRANSIT", note: "Issue resolved on site" }}
+                  submitLabel="Back on route"
+                  pendingLabel="Resuming…"
+                  className="contents"
+                  buttonClassName="min-h-11 col-span-2"
+                />
               )}
             </div>
             <a

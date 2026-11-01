@@ -6,7 +6,8 @@ import { nextActions, type ShipmentStatus } from "@/lib/state-machine";
 import { computeRisk } from "@/lib/risk";
 import { minutesAgo, osmUrl } from "@/lib/geo";
 import { addEventAction, assignDriverAction } from "@/lib/shipment-actions";
-import { Button, Card, PageHeader, RiskBadge, Select, StatusBadge, Textarea, cx, fmtDateTime, fmtWeight } from "@/components/ui";
+import { ActionForm } from "@/components/action-form";
+import { Card, PageHeader, RiskBadge, Select, StatusBadge, Textarea, cx, fmtDateTime, fmtWeight } from "@/components/ui";
 
 export const metadata = { title: "Shipment — FedY" };
 
@@ -113,8 +114,14 @@ export default async function ShipmentDetailPage(props: { params: Promise<{ id: 
           <Card className="p-5">
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Assignment</h2>
             {drivers.length > 0 ? (
-              <form action={assignDriverAction} className="space-y-3">
-                <input type="hidden" name="shipmentId" value={shipment.id} />
+              <ActionForm
+                action={assignDriverAction}
+                hidden={{ shipmentId: shipment.id }}
+                submitLabel="Assign"
+                pendingLabel="Assigning…"
+                className="space-y-3"
+                buttonClassName="w-full"
+              >
                 <Select name="driverId" required defaultValue={shipment.driverId ?? ""}>
                   <option value="" disabled>Assign a driver…</option>
                   {drivers.map((d) => (
@@ -123,8 +130,7 @@ export default async function ShipmentDetailPage(props: { params: Promise<{ id: 
                     </option>
                   ))}
                 </Select>
-                <Button type="submit" size="sm" className="w-full">Assign</Button>
-              </form>
+              </ActionForm>
             ) : (
               <div className="text-sm">
                 <p className="font-medium">{shipment.driver?.user.name ?? "Unassigned"}</p>
@@ -173,22 +179,28 @@ export default async function ShipmentDetailPage(props: { params: Promise<{ id: 
               <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Move status</h2>
               <div className="flex flex-wrap gap-2">
                 {actions.filter((a) => a !== "EXCEPTION").map((a) => (
-                  <form key={a} action={addEventAction}>
-                    <input type="hidden" name="shipmentId" value={shipment.id} />
-                    <input type="hidden" name="status" value={a} />
-                    <Button size="sm" variant="secondary" type="submit">
-                      {a.replaceAll("_", " ").toLowerCase()}
-                    </Button>
-                  </form>
+                  <ActionForm
+                    key={a}
+                    action={addEventAction}
+                    hidden={{ shipmentId: shipment.id, status: a }}
+                    submitLabel={a.replaceAll("_", " ").toLowerCase()}
+                    pendingLabel="Moving…"
+                    variant="secondary"
+                  />
                 ))}
               </div>
               {canException && (
-                <form action={addEventAction} className="mt-4 space-y-2">
-                  <input type="hidden" name="shipmentId" value={shipment.id} />
-                  <input type="hidden" name="status" value="EXCEPTION" />
+                <ActionForm
+                  action={addEventAction}
+                  hidden={{ shipmentId: shipment.id, status: "EXCEPTION" }}
+                  submitLabel="Report exception"
+                  pendingLabel="Filing…"
+                  variant="danger"
+                  className="mt-4 space-y-2"
+                  buttonClassName="w-full"
+                >
                   <Textarea name="note" placeholder="Exception note (what went wrong?)" rows={2} required />
-                  <Button size="sm" variant="danger" type="submit" className="w-full">Report exception</Button>
-                </form>
+                </ActionForm>
               )}
             </Card>
           )}

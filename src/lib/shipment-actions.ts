@@ -38,37 +38,42 @@ export async function createShipmentAction(_prev: FormState, formData: FormData)
   redirect(`/dashboard/shipments/${shipment.id}`);
 }
 
-export async function assignDriverAction(formData: FormData): Promise<void> {
+export async function assignDriverAction(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireSession(["DISPATCHER", "ADMIN"]);
   const parsed = assignSchema.safeParse({
     shipmentId: formData.get("shipmentId"),
     driverId: formData.get("driverId"),
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid request." };
 
   const shipment = await db.shipment.findUnique({ where: { id: parsed.data.shipmentId } });
-  if (!shipment) return;
+  if (!shipment) return { error: "Shipment not found." };
   const driver = await db.driver.findUnique({ where: { id: parsed.data.driverId }, select: { id: true } });
-  if (!driver) return;
+  if (!driver) return { error: "Driver not found." };
   const moving = shipment.status === "CREATED" || shipment.status === "ASSIGNED";
-  if (!moving) return;
+  if (!moving) return { error: "Only new or assigned shipments can change driver." };
 
-  await db.$transaction([
-    db.shipment.update({ where: { id: shipment.id }, data: { driverId: parsed.data.driverId, status: "ASSIGNED" } }),
-    ...(shipment.status === "CREATED"
-      ? [db.shipmentEvent.create({ data: { shipmentId: shipment.id, status: "ASSIGNED", note: "Driver assigned" } })]
-      : [
-          db.shipmentEvent.create({
-            data: { shipmentId: shipment.id, status: "ASSIGNED", note: "Reassigned to another driver" },
-          }),
-        ]),
-  ]);
+  try {
+    await db.$transaction([
+      db.shipment.update({ where: { id: shipment.id }, data: { driverId: parsed.data.driverId, status: "ASSIGNED" } }),
+      ...(shipment.status === "CREATED"
+        ? [db.shipmentEvent.create({ data: { shipmentId: shipment.id, status: "ASSIGNED", note: "Driver assigned" } })]
+        : [
+            db.shipmentEvent.create({
+              data: { shipmentId: shipment.id, status: "ASSIGNED", note: "Reassigned to another driver" },
+            }),
+          ]),
+    ]);
+  } catch {
+    return { error: "Could not assign the driver. Try again." };
+  }
   revalidatePath("/dashboard/shipments");
   revalidatePath(`/dashboard/shipments/${shipment.id}`);
   revalidatePath("/driver");
+  return null;
 }
 
-export async function addEventAction(formData: FormData): Promise<void> {
+export async function addEventAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const session = await requireSession();
   const parsed = eventSchema.safeParse({
     shipmentId: formData.get("shipmentId"),
@@ -77,25 +82,33 @@ export async function addEventAction(formData: FormData): Promise<void> {
     lat: formData.get("lat") || undefined,
     lng: formData.get("lng") || undefined,
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid request." };
   const { shipmentId, status, note, lat, lng } = parsed.data;
 
   const shipment = await db.shipment.findUnique({ where: { id: shipmentId } });
-  if (!shipment) return;
+  if (!shipment) return { error: "Shipment not found." };
 
   if (session.role === "DRIVER") {
     const driver = await db.driver.findUnique({ where: { userId: session.sub } });
-    if (!driver || shipment.driverId !== driver.id) return;
-    if (!["PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED", "EXCEPTION"].includes(status)) return;
+    if (!driver || shipment.driverId !== driver.id) return { error: "This stop is not assigned to you." };
+    if (!["PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED", "EXCEPTION"].includes(status))
+      return { error: "Drivers cannot make this change." };
   }
-  if (!canTransition(shipment.status as ShipmentStatus, status as ShipmentStatus)) return;
+  if (!canTransition(shipment.status as ShipmentStatus, status as ShipmentStatus))
+    return {
+      error: `Cannot move a shipment from ${shipment.status.replaceAll("_", " ").toLowerCase()} to ${status.replaceAll("_", " ").toLowerCase()}.`,
+    };
 
-  await db.$transaction([
-    db.shipment.update({ where: { id: shipment.id }, data: { status: status as ShipmentStatus } }),
-    db.shipmentEvent.create({
-      data: { shipmentId: shipment.id, status: status as ShipmentStatus, note: note || undefined, lat, lng },
-    }),
-  ]);
+  try {
+    await db.$transaction([
+      db.shipment.update({ where: { id: shipment.id }, data: { status: status as ShipmentStatus } }),
+      db.shipmentEvent.create({
+        data: { shipmentId: shipment.id, status: status as ShipmentStatus, note: note || undefined, lat, lng },
+      }),
+    ]);
+  } catch {
+    return { error: "Could not save the status update. Try again." };
+  }
   if (status === "DELIVERED" && shipment.driverId) {
     const open = await db.shipment.count({
       where: { driverId: shipment.driverId, status: { notIn: ["DELIVERED", "CANCELLED"] } },
@@ -110,4 +123,6 @@ export async function addEventAction(formData: FormData): Promise<void> {
   revalidatePath(`/dashboard/shipments/${shipment.id}`);
   revalidatePath("/track/" + shipment.trackingCode);
   revalidatePath("/driver");
+  revalidatePath("/my");
+  return null;
 }

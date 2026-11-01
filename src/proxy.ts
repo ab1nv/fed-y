@@ -15,7 +15,9 @@ async function sessionRole(request: NextRequest): Promise<string | null> {
 }
 
 function homeFor(role: string) {
-  return role === "DRIVER" ? "/driver" : "/dashboard";
+  if (role === "DRIVER") return "/driver";
+  if (role === "CUSTOMER") return "/my";
+  return "/dashboard";
 }
 
 export async function proxy(request: NextRequest) {
@@ -31,6 +33,11 @@ export async function proxy(request: NextRequest) {
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
+  if (role === "CUSTOMER") {
+    if (!pathname.startsWith("/my")) return NextResponse.redirect(new URL("/my", request.url));
+    return;
+  }
+  if (pathname.startsWith("/my")) return NextResponse.redirect(new URL(homeFor(role), request.url));
   if (pathname.startsWith("/admin") && role !== "ADMIN")
     return NextResponse.redirect(new URL("/dashboard", request.url));
   if (pathname.startsWith("/driver") && role !== "DRIVER")
@@ -38,5 +45,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/driver/:path*", "/login", "/signup"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/driver/:path*", "/my/:path*", "/login", "/signup"],
 };

@@ -1,6 +1,6 @@
 # FedY
 
-**Logistics, delivered.** FedY is a full-stack shipment, fleet and warehouse operations platform: a dispatch console, a mobile-first driver app, a public customer tracking page with live driver location, and a dark landing site. One Next.js app, one Turso database.
+**Logistics, delivered.** FedY is a full-stack shipment, fleet and warehouse operations platform: a dispatch console, a mobile-first driver app with always-on location sharing, a customer portal with a live parcel map, a public tracking page, and a dark landing site. One Next.js app, one Turso database.
 
 ---
 
@@ -29,22 +29,23 @@
 |---|---|
 | **Admin** | Everything, plus a Team page to provision accounts and roles |
 | **Dispatcher / Ops** | KPI overview with charts, shipment list with filters and pagination, booking desk, driver assignment, fleet and warehouse management, at-risk queue |
-| **Driver** | Mobile-first "My stops": today's assignments, one-tap status changes, exception reporting, optional live GPS sharing |
-| **Customer** | No login. Public tracking at `/track/FDY-XXXX-XXXX` with a progress rail, event history, live parcel location, and a JSON endpoint |
+| **Driver** | Mobile-first "My stops": today's assignments, one-tap status changes, exception reporting, automatic live GPS with a demo fallback |
+| **Customer** | Signed-in portal at `/my` with a live Leaflet map of their parcels, plus public tracking at `/track/FDY-XXXX-XXXX` and a JSON endpoint |
 
 Every number in the UI is computed from the database at request time. There are no mock screens.
 
 ## Tech stack
 
-- **Next.js 16.3.4** (App Router, React 19, Turbopack), one codebase for the marketing site, server actions, and the public API
-- **TypeScript 5**, strict
+- **Next.js 16.4.3** (App Router, React 19.3, Turbopack), one codebase for the marketing site, server actions, and the public API
+- **TypeScript 6.0**, strict (TypeScript 7 is current upstream, but `typescript-eslint` still rejects it, so 6 is the latest version the linter supports)
 - **Tailwind CSS v4**, CSS-first tokens
-- **Prisma 7** with the **libSQL driver adapter** and **Turso** (SQLite) for storage
+- **Prisma 7.10** with the **libSQL driver adapter** and **Turso** (SQLite) for storage
+- **Leaflet 1.9 + React Leaflet 5** for the customer live map
 - **GSAP 3.15 + @gsap/react** for the landing animation
 - **Recharts 3** for dashboard charts
 - **Zod 4** for validation at every trust boundary
 - **jose** for signed session tokens, **node:crypto scrypt** for passwords
-- **next-themes** for the dashboard light/dark toggle
+- **next-themes** for the dashboard theme toggle, dark by default
 - **Vitest** for domain tests, **Playwright** for browser and API end-to-end tests
 - **pnpm 11** (`packageManager` pinned)
 
@@ -69,11 +70,11 @@ All data access is server-side. Forms call **server actions** that re-check the 
 
 ## Roles and auth
 
-- Signup (`/signup`) is open for **DISPATCHER** and **DRIVER**. Driver signup collects a phone number and creates the `Driver` profile in the same transaction. **ADMIN** accounts are provisioned on the Team page or by the seed.
+- Signup (`/signup`) is open for **DISPATCHER** and **DRIVER**. Driver signup collects a phone number and creates the `Driver` profile in the same transaction. **ADMIN** accounts are provisioned on the Team page or by the seed. **CUSTOMER** accounts are linked to a customer record and are seeded for the demo portal.
 - Login is username plus password, hashed with scrypt (N=32768, random 16-byte salt, constant-time compare).
 - Session: jose JWT (`sub`, `name`, `username`, `role`), 7-day expiry, signed with `SESSION_SECRET`.
 - Route protection has two layers:
-  - `src/proxy.ts` matches `/dashboard/*`, `/admin/*`, `/driver/*`, `/login`, `/signup`. Unauthenticated users are sent to `/login?next=…`; dispatchers cannot open `/admin`; drivers land on `/driver`; signed-in users skip the login form.
+  - `src/proxy.ts` matches `/dashboard/*`, `/admin/*`, `/driver/*`, `/my/*`, `/login`, `/signup`. Unauthenticated users are sent to `/login?next=…`; dispatchers cannot open `/admin`; drivers land on `/driver`; customers only reach `/my`; signed-in users skip the login form.
   - `requireSession(roles)` in every layout, page, and action, enforced even if someone bypasses the proxy.
 
 ## Feature walkthrough
@@ -112,7 +113,11 @@ Admin-only. Create users with any role (driver creation also creates the profile
 
 ### Driver app (`/driver`)
 
-A mobile column capped at `max-w-lg`: open stops and delivered-today count. Each stop card shows destination, promised time (red when overdue), weight, and big-tap buttons generated from the state machine. Reporting an issue files an `EXCEPTION` event; "Back on route" resumes. The **Share location** control uses the browser geolocation API and writes the latest position to the database, so dispatch and public tracking see the same pin.
+A mobile column capped at `max-w-lg`: open stops and delivered-today count. Each stop card shows destination, promised time (red when overdue), weight, and big-tap buttons generated from the state machine. Reporting an issue files an `EXCEPTION` event; "Back on route" resumes. The app starts tracking location as soon as a driver signs in. If the browser blocks GPS, a red notice explains that location is required and offers **Use demo location** so the demo still works. Every ping writes the latest position to the database, so dispatch and customers see the same pin.
+
+### Customer portal (`/my`)
+
+A signed-in customer sees only their own shipments. A Leaflet map plots every parcel at its live driver position, or at the destination when no GPS ping exists yet. Cards show status, route, promised date, last-seen age, and a link to the full public tracking page. Dark mode is the default across the whole app.
 
 ### Public tracking (`/track/FDY-…`)
 
@@ -127,9 +132,9 @@ No login. Current status on a six-step progress rail, origin and destination car
 
 ## Data model
 
-Prisma schema: `User 1:0..1 Driver *:1 Vehicle`, `Shipment *:1 Customer`, `*:1 Warehouse (origin)`, `*:0..1 Driver`, `1:* ShipmentEvent` (append-only timeline), `Warehouse 1:* InventoryItem` with reorder levels. Tracking code, username, email, plate number, and warehouse code are unique. SQLite has no enum type, so statuses and roles are strings constrained by the action layer and Zod schemas.
+Prisma schema: `User 1:0..1 Driver *:1 Vehicle`, `User 1:0..1 Customer`, `Shipment *:1 Customer`, `*:1 Warehouse (origin)`, `*:0..1 Driver`, `1:* ShipmentEvent` (append-only timeline), `Warehouse 1:* InventoryItem` with reorder levels. Tracking code, username, email, plate number, and warehouse code are unique. SQLite has no enum type, so statuses and roles are strings constrained by the action layer and Zod schemas.
 
-`prisma/seed.ts` uses a deterministic RNG to create a realistic dataset: 6 users, 5 vehicles, 4 warehouses with stock, 15 customers, and 51 shipments spanning about six weeks, including delivered, late, in transit, exceptions, stale updates, and cancellations. Every driver gets a seeded last-known position so tracking has something to show before the first live ping.
+`prisma/seed.ts` uses a deterministic RNG to create a realistic dataset: 7 users, 5 vehicles, 4 warehouses with stock, 15 customers, and 51 shipments spanning about six weeks, including delivered, late, in transit, exceptions, stale updates, and cancellations. Every driver gets a seeded last-known position so tracking has something to show before the first live ping. The first customer is linked to the demo customer login.
 
 ## Getting started
 
@@ -157,8 +162,9 @@ The seed is idempotent: it clears the app tables and rebuilds the demo dataset. 
 | `ravi` | `password123` | Driver | `/driver` |
 | `imran` | `password123` | Driver | `/driver` |
 | `deepa` | `password123` | Driver | `/driver` |
+| `customer` | `password123` | Customer (Ananya Desai) | `/my` |
 
-The login page lists the three primary demo profiles and fills the form when one is clicked. Warehouse operations are handled by the dispatcher account; there is no separate warehouse-manager role.
+The login page lists Admin, Dispatcher, Driver, and Customer demo profiles and fills the form when one is clicked. Warehouse operations are handled by the dispatcher account; there is no separate warehouse-manager role.
 
 A live tracking code: open `/track` and it shows a current example from the seeded network.
 
@@ -187,7 +193,7 @@ pnpm build
 pnpm test:e2e    # Playwright: auth roles, dispatch flow, driver flow, GPS, bulk data, API load
 ```
 
-The browser suite runs against a production build on port 3100. It covers the redirect matrix, role boundaries, signup, shipment booking, driver assignment, the full status lane including exception recovery, public tracking, JSON API, search and pagination, team provisioning, fleet and warehouse forms, and live GPS across driver, dispatcher, and public sessions. Test rows are removed by `tests/global-teardown.ts`.
+The browser suite runs against a production build on port 3100. It covers the redirect matrix, role boundaries, customer portal and map, signup, shipment booking, driver assignment, the full status lane including exception recovery, public tracking, JSON API, search and pagination, team provisioning, fleet and warehouse forms, automatic GPS tracking, demo GPS fallback, and live location across driver, dispatcher, and customer sessions. Test rows are removed by `tests/global-teardown.ts`.
 
 The load spec inserts 300 shipments, checks pagination and filters, then fires 300 tracking API requests in concurrent batches. The tracking API uses one JSON-aggregated SQL query instead of Prisma relation loading, which keeps it fast against remote Turso.
 
@@ -225,14 +231,16 @@ The app is stateless. All state lives in Turso; no cron jobs, no local files, no
 │   │   ├── (marketing)/       GSAP landing page
 │   │   ├── (app)/             protected shell: dashboard pages and /admin/team
 │   │   ├── driver/            mobile driver app
+│   │   ├── my/                signed-in customer portal with live map
 │   │   ├── login|signup/      auth (dark)
 │   │   ├── track/             public tracking and [code]
 │   │   └── api/track/[code]/  JSON endpoint
-│   ├── components/            UI kit, shell, charts, forms, landing, location pinger
+│   ├── components/            UI kit, shell, charts, forms, landing, location pinger,
+│   │                          Leaflet map, action/loading states
 │   ├── lib/                   db, turso, session, password, state machine, risk,
 │   │                          schemas, actions, tracking, geo helpers
 │   └── generated/prisma/      Prisma 7 generated client (gitignored)
-├── tests/                     Playwright auth, ops, location, load specs
+├── tests/                     Playwright auth, customer, ops, location, load specs
 ├── src/lib/core.test.ts       Vitest domain tests
 ├── playwright.config.ts
 └── Makefile
@@ -241,6 +249,6 @@ The app is stateless. All state lives in Turso; no cron jobs, no local files, no
 ## Known limits
 
 - No email notifications, password reset, CSV import, or route optimisation.
-- No embedded map tiles. Live location is shown as coordinates with an OpenStreetMap link, which keeps the app dependency-free and fast.
+- The customer map uses OpenStreetMap tiles over the network. Without internet it falls back to a plain panel, while coordinates remain visible in the shipment cards.
 - Rate limiting is delegated to Vercel. A single-operator deployment does not need an in-memory limiter.
 - The seed records lateness through event notes; a dedicated `deliveredAt` column would be the next step for production reporting.

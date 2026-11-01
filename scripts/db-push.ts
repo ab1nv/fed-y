@@ -13,24 +13,44 @@ async function main() {
 
   const client = createClient({ url, authToken });
 
-  const existing = await client.execute(
-    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'Shipment'",
-  );
-  if (existing.rows.length > 0) {
-    console.log("Schema already present — nothing to apply.");
-    client.close();
-    return;
-  }
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS "_fedy_migrations" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "appliedAt" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  const appliedRows = await client.execute('SELECT "id" FROM "_fedy_migrations"');
+  const applied = new Set(appliedRows.rows.map((r) => r[0] as string));
 
   const dir = "prisma/migrations";
-  const files = readdirSync(dir)
+  const migrations = readdirSync(dir)
     .filter((f) => /^\d/.test(f))
-    .sort()
-    .map((f) => join(dir, f, "migration.sql"));
+    .sort();
 
-  for (const file of files) {
+  // An existing database created before migration tracking started already
+  // has the init schema. Record it as applied, then apply only new migrations.
+  const legacy = await client.execute(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'Shipment'",
+  );
+  if (legacy.rows.length > 0 && applied.size === 0) {
+    await client.execute({
+      sql: 'INSERT INTO "_fedy_migrations" ("id") VALUES (?)',
+      args: [migrations[0]],
+    });
+    applied.add(migrations[0]);
+    console.log(`Baselined ${migrations[0]}`);
+  }
+
+  for (const migration of migrations) {
+    if (applied.has(migration)) continue;
+    const file = join(dir, migration, "migration.sql");
     await client.executeMultiple(readFileSync(file, "utf8"));
-    console.log(`Applied ${file}`);
+    await client.execute({
+      sql: 'INSERT INTO "_fedy_migrations" ("id") VALUES (?)',
+      args: [migration],
+    });
+    console.log(`Applied ${migration}`);
   }
 
   client.close();

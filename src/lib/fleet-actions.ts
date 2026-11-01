@@ -72,11 +72,18 @@ export async function createTeamUserAction(_prev: FormState, formData: FormData)
   return null;
 }
 
-export async function removeTeamUserAction(formData: FormData): Promise<void> {
+export async function removeTeamUserAction(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireSession(["ADMIN"]);
   const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Missing user id." };
   const victim = await db.user.findUnique({ where: { id } });
-  if (!victim || victim.username === "admin") return;
-  await db.user.delete({ where: { id } });
+  if (!victim) return { error: "User not found." };
+  if (victim.username === "admin") return { error: "The seeded admin cannot be removed." };
+  try {
+    await db.user.delete({ where: { id } });
+  } catch {
+    return { error: "Could not remove this user." };
+  }
   revalidatePath("/admin/team");
+  return null;
 }

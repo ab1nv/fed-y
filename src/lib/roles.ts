@@ -1,6 +1,6 @@
-export type Role = "ADMIN" | "DISPATCHER" | "DRIVER";
+export type Role = "ADMIN" | "DISPATCHER" | "DRIVER" | "CUSTOMER";
 
-export const ROLES: Role[] = ["ADMIN", "DISPATCHER", "DRIVER"];
+export const ROLES: Role[] = ["ADMIN", "DISPATCHER", "DRIVER", "CUSTOMER"];
 
 export function isRole(value: unknown): value is Role {
   return typeof value === "string" && ROLES.includes(value as Role);
