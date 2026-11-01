@@ -56,17 +56,19 @@ export async function createTeamUserAction(_prev: FormState, formData: FormData)
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const clash = await db.user.findFirst({
-    where: { OR: [{ username: parsed.data.username }, { email: parsed.data.email }] },
+    where: { OR: [{ username: parsed.data.username }, { email: parsed.data.email.toLowerCase() }] },
   });
   if (clash) return { error: "Username or email already in use." };
+  const { password, ...fields } = parsed.data;
   await db.user.create({
     data: {
-      ...parsed.data,
-      passwordHash: await hashPassword(parsed.data.password),
+      ...fields,
+      email: fields.email.toLowerCase(),
+      passwordHash: await hashPassword(password),
       ...(parsed.data.role === "DRIVER" ? { driver: { create: { phone: "" } } } : {}),
     },
   });
-  revalidatePath("/dashboard/team");
+  revalidatePath("/admin/team");
   return null;
 }
 
@@ -76,5 +78,5 @@ export async function removeTeamUserAction(formData: FormData): Promise<void> {
   const victim = await db.user.findUnique({ where: { id } });
   if (!victim || victim.username === "admin") return;
   await db.user.delete({ where: { id } });
-  revalidatePath("/dashboard/team");
+  revalidatePath("/admin/team");
 }

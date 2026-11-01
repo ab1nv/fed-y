@@ -7,6 +7,8 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env.DATABASE_URL,
+    // Prisma CLI never connects here for this app: schema changes are applied to
+    // Turso by scripts/db-push.ts. A file URL keeps `prisma generate` happy.
+    url: "file:./prisma/dev.db",
   },
 });

@@ -1,13 +1,47 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useActionState } from "react";
 import { loginAction, signupAction, type FormState } from "@/lib/auth-actions";
-import { Button, Input, Label, Logo, Select } from "@/components/ui";
+import { Button, Input, Label, Logo, Select, cx } from "@/components/ui";
+
+const DEMO_ACCOUNTS = [
+  {
+    username: "admin",
+    name: "Aarav Mehta",
+    role: "Admin",
+    blurb: "Everything + Team",
+    key: "admin",
+  },
+  {
+    username: "priya",
+    name: "Priya Sharma",
+    role: "Dispatcher",
+    blurb: "Dispatch + warehouse ops",
+    key: "dispatcher",
+  },
+  {
+    username: "ravi",
+    name: "Ravi Kumar",
+    role: "Driver",
+    blurb: "Mobile stops + GPS",
+    key: "driver",
+  },
+] as const;
+
+const DEMO_PASSWORD = "password123";
 
 export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: string }) {
   const action = mode === "login" ? loginAction : signupAction;
   const [state, formAction, pending] = useActionState<FormState, FormData>(action, null);
+  const [creds, setCreds] = useState({ username: "", password: "" });
+  const [picked, setPicked] = useState<string | null>(null);
+
+  function pickDemo(username: string, key: string) {
+    setCreds({ username, password: DEMO_PASSWORD });
+    setPicked(key);
+  }
 
   return (
     <main className="marketing flex min-h-dvh flex-col items-center justify-center bg-bg px-5 py-16 text-ink">
@@ -31,7 +65,42 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
             : "Dispatcher or driver access. Admin accounts are provisioned internally."}
         </p>
 
-        <form action={formAction} className="mt-8 space-y-4">
+        {mode === "login" && (
+          <section className="mt-6" aria-label="Demo accounts">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+              Try a demo profile
+            </p>
+            <div className="mt-2 grid gap-2">
+              {DEMO_ACCOUNTS.map((a) => (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => pickDemo(a.username, a.key)}
+                  aria-pressed={picked === a.key}
+                  className={cx(
+                    "flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition",
+                    picked === a.key
+                      ? "border-brand/60 bg-brand/10"
+                      : "border-line bg-surface hover:border-brand/40 hover:bg-surface2",
+                  )}
+                >
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{a.role}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {a.name} · {a.blurb}
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-mono text-xs text-brand">{a.username}</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-muted">
+              Password for every demo profile: <span className="font-mono text-ink">password123</span>
+            </p>
+          </section>
+        )}
+
+        <form action={formAction} className="mt-6 space-y-4">
           {mode === "signup" && (
             <>
               <div>
@@ -62,7 +131,18 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
           {mode === "login" && (
             <div>
               <Label htmlFor="username">Username</Label>
-              <Input id="username" name="username" autoComplete="username" required autoFocus />
+              <Input
+                id="username"
+                name="username"
+                autoComplete="username"
+                required
+                autoFocus
+                value={creds.username}
+                onChange={(e) => {
+                  setCreds((c) => ({ ...c, username: e.target.value }));
+                  setPicked(null);
+                }}
+              />
             </div>
           )}
           <div>
@@ -74,6 +154,15 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               required
               minLength={8}
+              value={mode === "login" ? creds.password : undefined}
+              onChange={
+                mode === "login"
+                  ? (e) => {
+                      setCreds((c) => ({ ...c, password: e.target.value }));
+                      setPicked(null);
+                    }
+                  : undefined
+              }
             />
           </div>
           {next && <input type="hidden" name="next" value={next} />}
@@ -87,13 +176,6 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
           </Button>
         </form>
 
-        {mode === "login" && (
-          <p className="mt-8 rounded-lg border border-line bg-surface px-3 py-2.5 text-xs leading-relaxed text-muted">
-            Demo accounts — <span className="font-mono">admin</span> / <span className="font-mono">priya</span>{" "}
-            (dispatcher) / <span className="font-mono">ravi</span> (driver) — password{" "}
-            <span className="font-mono">password123</span>
-          </p>
-        )}
         <p className="mt-6 text-center text-xs text-muted">
           Just tracking a parcel?{" "}
           <Link href="/track" className="text-brand underline-offset-4 hover:underline">

@@ -1,9 +1,13 @@
 import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/lib/password";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const url = process.env.TURSO_DATABASE_URL;
+const authToken = process.env.TURSO_AUTH_TOKEN;
+if (!url || !authToken) throw new Error("Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in .env.");
+
+const adapter = new PrismaLibSql({ url, authToken });
 const db = new PrismaClient({ adapter });
 
 function rng(seed: number) {
@@ -248,7 +252,29 @@ async function main() {
   console.log(
     `Seeded ${created} shipments, ${customers.length} customers, 4 warehouses, 5 vehicles, 3 drivers, 6 users`,
   );
+
+  // Give each driver a plausible last-known position so live tracking has
+  // something to show before anyone opens the driver app.
+  const driverSpots: Record<string, { lat: number; lng: number }> = {
+    ravi: { lat: 12.9716, lng: 77.5946 },
+    imran: { lat: 19.076, lng: 72.8777 },
+    deepa: { lat: 17.385, lng: 78.4867 },
+  };
+  for (const [username, spot] of Object.entries(driverSpots)) {
+    const driver = await db.driver.findFirst({ where: { user: { username } } });
+    if (!driver) continue;
+    await db.driver.update({
+      where: { id: driver.id },
+      data: { lastLat: spot.lat, lastLng: spot.lng, locationAccuracy: 35, lastSeenAt: new Date(now - hours(0.2)) },
+    });
+    await db.shipment.updateMany({
+      where: { driverId: driver.id, status: { notIn: ["DELIVERED", "CANCELLED"] } },
+      data: { currentLat: spot.lat, currentLng: spot.lng, locationUpdatedAt: new Date(now - hours(0.2)) },
+    });
+  }
+
   console.log("Logins — admin/password123 (ADMIN) · priya|kabir/password123 (DISPATCHER) · ravi|imran|deepa/password123 (DRIVER)");
+  console.log("Demo tracking — /track shows a live example from the seeded network");
 }
 
 main()

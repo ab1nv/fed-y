@@ -4,14 +4,14 @@ import { useRef } from "react";
 import { useGSAP } from "@gsap/react";
 import { gsap } from "./gsap";
 
-const stats = [
-  { target: 98.6, dec: 1, suffix: "%", label: "On-time delivery" },
-  { target: 42, dec: 0, suffix: "k", label: "Shipments / month" },
-  { target: 1.4, dec: 1, suffix: "k", label: "Drivers on the app" },
-  { target: 26, dec: 0, suffix: "", label: "Hubs across the country" },
+const DEFAULT_STATS = [
+  { target: 0, dec: 1, suffix: "%", label: "On-time delivery" },
+  { target: 0, dec: 0, suffix: "", label: "Shipments booked" },
+  { target: 0, dec: 0, suffix: "", label: "Drivers on the app" },
+  { target: 0, dec: 0, suffix: "", label: "Active hubs" },
 ];
 
-export default function Stats() {
+export default function Stats({ stats = DEFAULT_STATS }: { stats?: typeof DEFAULT_STATS }) {
   const root = useRef<HTMLElement>(null);
 
   useGSAP(
@@ -50,7 +50,7 @@ export default function Stats() {
     <section ref={root} aria-label="Network numbers" className="border-t border-line">
       <div className="mx-auto w-full max-w-[1400px] px-5 py-16 sm:px-8">
         <p className="text-right font-mono text-[10px] tracking-[0.18em] text-muted/70 uppercase">
-          Figures from demo dataset
+          Snapshot from the seeded network
         </p>
         <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-4">
           {stats.map((s) => (

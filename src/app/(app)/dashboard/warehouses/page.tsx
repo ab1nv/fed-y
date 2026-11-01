@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { Card, PageHeader, cx } from "@/components/ui";
+import { AddWarehouseForm } from "@/components/add-warehouse-form";
 
 export const metadata = { title: "Warehouses — FedY" };
 
@@ -14,6 +15,10 @@ export default async function WarehousesPage() {
   return (
     <>
       <PageHeader title="Warehouses" sub={`${warehouses.length} sites · stock and outbound volume`} />
+      <Card className="mb-4 p-5">
+        <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Add warehouse</h2>
+        <AddWarehouseForm />
+      </Card>
       <div className="grid gap-4 md:grid-cols-2">
         {warehouses.map((w) => {
           const low = w.inventory.filter((i) => i.quantity <= i.reorderAt);

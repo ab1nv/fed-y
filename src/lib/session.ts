@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { Role } from "@/generated/prisma/enums";
+import type { Role } from "./roles";
 
 export const SESSION_COOKIE = "fedy_session";
 const WEEK = 60 * 60 * 24 * 7;

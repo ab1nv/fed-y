@@ -1,7 +1,9 @@
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/session";
-import { nextActions } from "@/lib/state-machine";
+import { nextActions, type ShipmentStatus } from "@/lib/state-machine";
 import { addEventAction } from "@/lib/shipment-actions";
+import { startOfIndiaDay } from "@/lib/time";
+import { LocationPinger } from "@/components/location-pinger";
 import { Button, Card, StatusBadge, cx, fmtDateTime, fmtWeight } from "@/components/ui";
 
 export const metadata = { title: "My stops — FedY" };
@@ -26,7 +28,7 @@ export default async function DriverPage() {
     where: {
       driverId: driver.id,
       status: "DELIVERED",
-      events: { some: { status: "DELIVERED", createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } },
+      events: { some: { status: "DELIVERED", createdAt: { gte: startOfIndiaDay(new Date()) } } },
     },
   });
 
@@ -37,12 +39,16 @@ export default async function DriverPage() {
         <span className="font-medium text-emerald-600 dark:text-emerald-400">{doneToday} delivered today</span>
       </p>
 
+      <LocationPinger lastPingAt={driver.lastSeenAt?.toISOString() ?? null} />
+
       {shipments.length === 0 && (
         <Card className="p-8 text-center text-sm text-muted">All clear. No open assignments right now.</Card>
       )}
 
       {shipments.map((s) => {
-        const actions = nextActions(s.status, true);
+        const actions = nextActions(s.status as ShipmentStatus, true).filter(
+          (a) => s.status !== "EXCEPTION" || a !== "IN_TRANSIT",
+        );
         const overdue = s.promisedDate < new Date();
         return (
           <Card key={s.id} className="p-4">
@@ -59,6 +65,12 @@ export default async function DriverPage() {
             </p>
             {s.events[0]?.note && s.status === "EXCEPTION" && (
               <p className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-400">{s.events[0].note}</p>
+            )}
+            {s.currentLat != null && s.currentLng != null && (
+              <p className="mt-2 text-xs text-muted">
+                live pin {s.currentLat.toFixed(4)}, {s.currentLng.toFixed(4)}
+                {s.locationUpdatedAt ? ` · ${fmtDateTime(s.locationUpdatedAt)}` : ""}
+              </p>
             )}
             <div className="mt-4 grid grid-cols-2 gap-2">
               {actions.map((a) => (

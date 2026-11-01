@@ -97,7 +97,7 @@ export default function Spotlight() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-40" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
             </span>
-            Live · 1.4k vehicles reporting
+            Live preview · geolocation on
           </div>
         </div>
       </div>

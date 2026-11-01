@@ -4,21 +4,20 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:up": "docker compose up -d",
-    "db:down": "docker compose down",
-    "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
+    "test:e2e": "playwright test",
+    "db:push": "tsx scripts/db-push.ts",
     "db:seed": "tsx prisma/seed.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
-    "@prisma/adapter-pg": "^7.10.0",
+    "@libsql/client": "^0.18.0",
+    "@prisma/adapter-libsql": "^7.10.1",
     "@prisma/client": "^7.10.0",
     "dotenv": "^17.2.3",
     "gsap": "^3.15.0",
@@ -31,6 +30,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -43,5 +43,8 @@
     "typescript": "^5",
     "vitest": "^5.0.0"
   },
-  "packageManager": "pnpm@11.20.0"
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=20.9"
+  }
 }

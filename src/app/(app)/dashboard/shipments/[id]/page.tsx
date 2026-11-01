@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/session";
-import { nextActions } from "@/lib/state-machine";
+import { nextActions, type ShipmentStatus } from "@/lib/state-machine";
 import { computeRisk } from "@/lib/risk";
+import { minutesAgo, osmUrl } from "@/lib/geo";
 import { addEventAction, assignDriverAction } from "@/lib/shipment-actions";
 import { Button, Card, PageHeader, RiskBadge, Select, StatusBadge, Textarea, cx, fmtDateTime, fmtWeight } from "@/components/ui";
 
@@ -26,12 +27,12 @@ export default async function ShipmentDetailPage(props: { params: Promise<{ id: 
 
   const now = new Date();
   const risk = computeRisk(
-    shipment.status,
+    shipment.status as ShipmentStatus,
     shipment.events[shipment.events.length - 1]?.createdAt ?? null,
     shipment.promisedDate,
     now,
   );
-  const actions = nextActions(shipment.status, false);
+  const actions = nextActions(shipment.status as ShipmentStatus, false);
   const drivers = shipment.status === "CREATED" || shipment.status === "ASSIGNED"
     ? await db.driver.findMany({ include: { user: { select: { name: true } }, vehicle: true } })
     : [];
@@ -66,7 +67,11 @@ export default async function ShipmentDetailPage(props: { params: Promise<{ id: 
               <div>
                 <p className="text-xs text-muted">Destination</p>
                 <p className="mt-1 font-medium">{shipment.destinationAddress}</p>
-                <p className="text-xs text-muted">{shipment.destLat?.toFixed(3)}, {shipment.destLng?.toFixed(3)}</p>
+                {shipment.destLat != null && shipment.destLng != null && (
+                  <p className="text-xs text-muted">
+                    {shipment.destLat.toFixed(3)}, {shipment.destLng.toFixed(3)}
+                  </p>
+                )}
               </div>
               <div>
                 <p className="text-xs text-muted">Weight</p>
@@ -129,6 +134,37 @@ export default async function ShipmentDetailPage(props: { params: Promise<{ id: 
                   </p>
                 )}
               </div>
+            )}
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Live location</h2>
+            {shipment.currentLat != null && shipment.currentLng != null ? (
+              <>
+                <p className="text-sm font-medium tabular-nums">
+                  {shipment.currentLat.toFixed(5)}, {shipment.currentLng.toFixed(5)}
+                </p>
+                <p className="mt-0.5 text-xs text-muted">
+                  {shipment.locationUpdatedAt
+                    ? `${minutesAgo(shipment.locationUpdatedAt) <= 10 ? "Updated" : "Last seen"} ${minutesAgo(shipment.locationUpdatedAt)} min ago`
+                    : "Pinned"}
+                  {shipment.driver?.lastSeenAt
+                    ? ` · driver seen ${minutesAgo(shipment.driver.lastSeenAt)} min ago`
+                    : ""}
+                </p>
+                <a
+                  href={osmUrl(shipment.currentLat, shipment.currentLng)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-block text-xs text-brand underline-offset-4 hover:underline"
+                >
+                  open map ↗
+                </a>
+              </>
+            ) : (
+              <p className="text-sm text-muted">
+                No GPS ping yet. The driver shares location from the driver app.
+              </p>
             )}
           </Card>
 

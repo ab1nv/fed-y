@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Logo } from "@/components/ui";
 
 export const metadata = { title: "Track a shipment — FedY" };
+export const dynamic = "force-dynamic";
 
 export default function TrackHome() {
   return (

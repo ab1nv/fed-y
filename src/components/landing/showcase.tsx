@@ -179,8 +179,8 @@ export default function Showcase() {
         </div>
 
         <p className="mt-10 max-w-xl text-sm leading-relaxed text-muted">
-          Every card above is live product surface — timeline, KPIs and the driver&apos;s stop
-          sheet. Same data, one pipeline: EDI in, events out, POD proof at the end of the
+          Illustrative preview of the console. The live app computes every number from
+          the database: timeline, KPIs and the driver&apos;s stop sheet. Same data, one pipeline: EDI in, events out, POD proof at the end of the
           lane.
         </p>
       </div>

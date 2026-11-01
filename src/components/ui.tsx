@@ -72,11 +72,13 @@ export function Field({
   hint?: string;
 }) {
   return (
-    <div>
-      <Label>{label}</Label>
+    <label className="block">
+      <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+        {label}
+      </span>
       {children}
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
-    </div>
+      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
+    </label>
   );
 }
 
@@ -170,7 +172,7 @@ export function Logo({ className, href = "/" }: { className?: string; href?: str
 }
 
 export function fmtDate(d: Date) {
-  return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(d);
+  return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" }).format(d);
 }
 export function fmtDateTime(d: Date) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -178,6 +180,7 @@ export function fmtDateTime(d: Date) {
     month: "short",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: "Asia/Kolkata",
   }).format(d);
 }
 export function fmtWeight(kg: number) {

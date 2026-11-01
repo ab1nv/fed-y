@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { computeRisk } from "@/lib/risk";
+import type { ShipmentStatus } from "@/lib/state-machine";
 import { PageHeader, RiskBadge, Select, StatusBadge, cx, fmtDate } from "@/components/ui";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -27,10 +28,10 @@ export default async function ShipmentsPage(props: {
   if (sp.driver) where.driverId = sp.driver;
   if (sp.q) {
     where.OR = [
-      { trackingCode: { contains: sp.q, mode: "insensitive" } },
-      { destinationCity: { contains: sp.q, mode: "insensitive" } },
-      { destinationAddress: { contains: sp.q, mode: "insensitive" } },
-      { customer: { name: { contains: sp.q, mode: "insensitive" } } },
+      { trackingCode: { contains: sp.q } },
+      { destinationCity: { contains: sp.q } },
+      { destinationAddress: { contains: sp.q } },
+      { customer: { name: { contains: sp.q } } },
     ];
   }
 
@@ -126,7 +127,7 @@ export default async function ShipmentsPage(props: {
                 <td className="whitespace-nowrap px-4 py-3 tabular-nums text-muted">{fmtDate(s.promisedDate)}</td>
                 <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
                 <td className="px-4 py-3">
-                  <RiskBadge level={computeRisk(s.status, s.events[0]?.createdAt ?? null, s.promisedDate, now).level} />
+                  <RiskBadge level={computeRisk(s.status as ShipmentStatus, s.events[0]?.createdAt ?? null, s.promisedDate, now).level} />
                 </td>
               </tr>
             ))}

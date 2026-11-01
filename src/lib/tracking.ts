@@ -8,3 +8,11 @@ export function newTrackingCode(): string {
     Array.from(bytes.subarray(a, b), (x) => ALPHABET[x % ALPHABET.length]).join("");
   return `FDY-${seg(0, 4)}-${seg(4, 8)}`;
 }
+
+export function normalizeTrackingCode(raw: string): string {
+  try {
+    return decodeURIComponent(raw).trim().toUpperCase();
+  } catch {
+    return raw.trim().toUpperCase();
+  }
+}

@@ -60,7 +60,7 @@ export default function CtaFooter() {
       </section>
 
       <footer className="border-t border-line bg-surface/30">
-        <div className="mx-auto grid w-full max-w-[1400px] gap-10 px-5 py-14 sm:grid-cols-2 sm:px-8 lg:grid-cols-4">
+        <div className="mx-auto grid w-full max-w-[1400px] gap-10 px-5 py-14 sm:grid-cols-2 sm:px-8 lg:grid-cols-3">
           <div>
             <p className="font-display text-lg font-bold tracking-tight">
               Fed<span className="text-brand">Y</span>
@@ -89,35 +89,20 @@ export default function CtaFooter() {
             </ul>
           </nav>
 
-          <nav aria-label="Company">
-            <p className="font-mono text-[11px] tracking-[0.2em] text-muted uppercase">
-              Company
-            </p>
-            <ul className="mt-4 space-y-2.5 text-sm">
-              {["About", "Careers", "Press"].map((l) => (
-                <li key={l}>
-                  <a href="#" className="text-ink/80 transition-colors hover:text-brand">
-                    {l}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
           <div>
             <p className="font-mono text-[11px] tracking-[0.2em] text-muted uppercase">
-              Status
+              Live tracking
             </p>
-            <p className="mt-4 flex items-center gap-2.5 text-sm">
-              <span className="relative flex h-2 w-2" aria-hidden>
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-40" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-              <span className="text-emerald-300">All systems operational</span>
+            <p className="mt-4 max-w-[30ch] text-sm leading-relaxed text-muted">
+              Every parcel has a public tracking page with status history and the
+              driver&apos;s latest known position.
             </p>
-            <p className="mt-3 font-mono text-[11px] text-muted/70">
-              uptime 99.98% · 30d
-            </p>
+            <Link
+              href="/track"
+              className="mt-4 inline-block text-sm text-brand underline-offset-4 hover:underline"
+            >
+              Track a shipment →
+            </Link>
           </div>
         </div>
 

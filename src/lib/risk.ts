@@ -18,10 +18,10 @@ export function computeRisk(
 
   if (hoursLeft < 0) {
     score += 3;
-    reasons.push(`Past promised delivery by ${Math.round(-hoursLeft)}h`);
+    reasons.push(`Past promised delivery by ${Math.max(1, Math.round(-hoursLeft))}h`);
   } else if (hoursLeft < 6) {
     score += 2;
-    reasons.push(`Delivery window closes in ${Math.round(hoursLeft)}h`);
+    reasons.push(`Delivery window closes in ${Math.max(1, Math.round(hoursLeft))}h`);
   } else if (hoursLeft < 24) {
     score += 1;
     reasons.push("Due within 24h");

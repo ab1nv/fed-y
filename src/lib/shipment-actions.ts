@@ -21,6 +21,12 @@ export async function createShipmentAction(_prev: FormState, formData: FormData)
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
 
+  const [customer, origin] = await Promise.all([
+    db.customer.findUnique({ where: { id: parsed.data.customerId }, select: { id: true } }),
+    db.warehouse.findUnique({ where: { id: parsed.data.originId }, select: { id: true } }),
+  ]);
+  if (!customer || !origin) return { error: "Pick a valid customer and origin warehouse." };
+
   const shipment = await db.shipment.create({
     data: {
       ...parsed.data,
@@ -42,6 +48,8 @@ export async function assignDriverAction(formData: FormData): Promise<void> {
 
   const shipment = await db.shipment.findUnique({ where: { id: parsed.data.shipmentId } });
   if (!shipment) return;
+  const driver = await db.driver.findUnique({ where: { id: parsed.data.driverId }, select: { id: true } });
+  if (!driver) return;
   const moving = shipment.status === "CREATED" || shipment.status === "ASSIGNED";
   if (!moving) return;
 
@@ -65,7 +73,7 @@ export async function addEventAction(formData: FormData): Promise<void> {
   const parsed = eventSchema.safeParse({
     shipmentId: formData.get("shipmentId"),
     status: formData.get("status"),
-    note: formData.get("note"),
+    note: formData.get("note") || undefined,
     lat: formData.get("lat") || undefined,
     lng: formData.get("lng") || undefined,
   });
@@ -80,7 +88,7 @@ export async function addEventAction(formData: FormData): Promise<void> {
     if (!driver || shipment.driverId !== driver.id) return;
     if (!["PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED", "EXCEPTION"].includes(status)) return;
   }
-  if (!canTransition(shipment.status, status as ShipmentStatus)) return;
+  if (!canTransition(shipment.status as ShipmentStatus, status as ShipmentStatus)) return;
 
   await db.$transaction([
     db.shipment.update({ where: { id: shipment.id }, data: { status: status as ShipmentStatus } }),

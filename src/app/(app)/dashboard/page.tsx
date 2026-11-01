@@ -2,6 +2,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { computeRisk } from "@/lib/risk";
+import type { ShipmentStatus } from "@/lib/state-machine";
+import { startOfIndiaDay } from "@/lib/time";
 import { Card, PageHeader, RiskBadge, StatusBadge, cx, fmtDate, fmtDateTime } from "@/components/ui";
 import { DeliveriesChart, StatusDonut } from "@/components/charts";
 
@@ -17,12 +19,12 @@ export default async function DashboardPage() {
   const [activeCount, exceptions, delivered, lateDelivered, mix, recentEvents] = await Promise.all([
     db.shipment.count({ where: { status: { in: [...ACTIVE] } } }),
     db.shipment.count({ where: { status: "EXCEPTION" } }),
-    db.shipment.count({ where: { status: "DELIVERED", createdAt: { gte: monthAgo } } }),
-    db.shipment.count({
+    db.shipmentEvent.count({ where: { status: "DELIVERED", createdAt: { gte: monthAgo } } }),
+    db.shipmentEvent.count({
       where: {
         status: "DELIVERED",
         createdAt: { gte: monthAgo },
-        events: { some: { status: "DELIVERED", note: "Delivered past promised window" } },
+        note: { contains: "past" },
       },
     }),
     db.shipment.groupBy({ by: ["status"], where: { status: { in: [...ACTIVE] } }, _count: { _all: true } }),
@@ -35,9 +37,7 @@ export default async function DashboardPage() {
 
   const daily = await Promise.all(
     Array.from({ length: 14 }, async (_, i) => {
-      const start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-      start.setDate(start.getDate() - (13 - i));
+      const start = new Date(startOfIndiaDay(now).getTime() - (13 - i) * 86400_000);
       const end = new Date(start.getTime() + 86400_000);
       const [all, late] = await Promise.all([
         db.shipmentEvent.count({ where: { status: "DELIVERED", createdAt: { gte: start, lt: end } } }),
@@ -64,7 +64,7 @@ export default async function DashboardPage() {
   )
     .map((s) => ({
       s,
-      risk: computeRisk(s.status, s.events[0]?.createdAt ?? null, s.promisedDate, now),
+      risk: computeRisk(s.status as ShipmentStatus, s.events[0]?.createdAt ?? null, s.promisedDate, now),
     }))
     .filter((x) => x.risk.level !== "low")
     .sort((a, b) => b.risk.score - a.risk.score)

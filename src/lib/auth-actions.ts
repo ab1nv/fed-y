@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "./db";
 import { hashPassword, verifyPassword } from "./password";
 import { clearSessionCookie, createSession, homeFor, setSessionCookie } from "./session";
+import type { Role } from "./roles";
 import { loginSchema, signupSchema } from "./schemas";
 
 export type FormState = { error: string } | null;
@@ -23,11 +24,11 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
     sub: user.id,
     name: user.name,
     username: user.username,
-    role: user.role,
+    role: user.role as Role,
   });
   await setSessionCookie(token);
   const next = String(formData.get("next") ?? "");
-  redirect(next.startsWith("/") && !next.startsWith("//") ? next : homeFor(user.role));
+  redirect(next.startsWith("/") && !next.startsWith("//") ? next : homeFor(user.role as Role));
 }
 
 export async function signupAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -59,9 +60,9 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
     },
   });
 
-  const token = await createSession({ sub: user.id, name: user.name, username: user.username, role: user.role });
+  const token = await createSession({ sub: user.id, name: user.name, username: user.username, role: user.role as Role });
   await setSessionCookie(token);
-  redirect(homeFor(user.role));
+  redirect(homeFor(user.role as Role));
 }
 
 export async function logoutAction(): Promise<void> {

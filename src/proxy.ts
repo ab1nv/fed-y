@@ -22,6 +22,10 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const role = await sessionRole(request);
 
+  if (pathname === "/login" || pathname === "/signup") {
+    if (role) return NextResponse.redirect(new URL(homeFor(role), request.url));
+    return;
+  }
   if (!role) {
     const url = new URL("/login", request.url);
     url.searchParams.set("next", pathname);
@@ -30,8 +34,6 @@ export async function proxy(request: NextRequest) {
   if (pathname.startsWith("/admin") && role !== "ADMIN")
     return NextResponse.redirect(new URL("/dashboard", request.url));
   if (pathname.startsWith("/driver") && role !== "DRIVER")
-    return NextResponse.redirect(new URL(homeFor(role), request.url));
-  if (pathname === "/login" || pathname === "/signup")
     return NextResponse.redirect(new URL(homeFor(role), request.url));
 }
 

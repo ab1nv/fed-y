@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { Card, PageHeader } from "@/components/ui";
 import { NewShipmentForm } from "@/components/new-shipment-form";
+import { indiaDateTimeInput } from "@/lib/time";
 
 export const metadata = { title: "New shipment — FedY" };
 
@@ -25,5 +26,5 @@ export default async function NewShipmentPage() {
 }
 
 function defaultPromisedDate(): string {
-  return new Date(Date.now() + 86400_000).toISOString().slice(0, 16);
+  return indiaDateTimeInput(new Date(Date.now() + 86400_000));
 }

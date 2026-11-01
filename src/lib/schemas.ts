@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseIndiaDateTime } from "./time";
 
 export const loginSchema = z.object({
   username: z.string().trim().min(3).max(32),
@@ -28,9 +29,13 @@ export const shipmentCreateSchema = z.object({
   destinationAddress: z.string().trim().min(5).max(240),
   destinationCity: z.string().trim().min(2).max(64),
   weightKg: z.coerce.number().positive().max(24000),
-  promisedDate: z.coerce
-    .date()
-    .refine((d) => d.getTime() > Date.now() - 3600_000, "Promised date must be in the future"),
+  promisedDate: z.preprocess(
+    (value) => (typeof value === "string" ? parseIndiaDateTime(value) : value),
+    z
+      .date()
+      .refine((d) => !Number.isNaN(d.getTime()), "Promised date is invalid")
+      .refine((d) => d.getTime() > Date.now() - 3600_000, "Promised date must be in the future"),
+  ),
 });
 
 export const assignSchema = z.object({
@@ -49,7 +54,7 @@ export const eventSchema = z.object({
     "EXCEPTION",
     "CANCELLED",
   ]),
-  note: z.string().trim().max(500).optional().or(z.literal("")),
+  note: z.string().trim().max(500).nullish(),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
 });
@@ -79,3 +84,9 @@ export const teamUserSchema = z.object({
 });
 
 export const trackCodeSchema = z.string().trim().toUpperCase().min(8).max(16);
+
+export const locationPingSchema = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
+  accuracy: z.coerce.number().min(0).max(100_000).optional(),
+});

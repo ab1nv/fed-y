@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { minutesAgo, osmUrl } from "@/lib/geo";
+import { normalizeTrackingCode } from "@/lib/tracking";
 import { Logo, StatusBadge, cx, fmtDateTime, fmtWeight } from "@/components/ui";
 
 export const metadata = { title: "Tracking — FedY" };
+export const dynamic = "force-dynamic";
 
 const STEPS = ["CREATED", "ASSIGNED", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"] as const;
 const LABELS: Record<string, string> = {
@@ -20,7 +23,7 @@ const LABELS: Record<string, string> = {
 export default async function TrackPage(props: { params: Promise<{ code: string }> }) {
   const { code } = await props.params;
   const shipment = await db.shipment.findUnique({
-    where: { trackingCode: decodeURIComponent(code).trim().toUpperCase() },
+    where: { trackingCode: normalizeTrackingCode(code) },
     include: {
       origin: true,
       customer: { select: { name: true } },
@@ -34,6 +37,10 @@ export default async function TrackPage(props: { params: Promise<{ code: string 
   const problem = shipment.status === "EXCEPTION" || shipment.status === "CANCELLED";
   const overdue = shipment.promisedDate < new Date() && deliveredIdx < 0 && !problem;
   const latest = shipment.events[shipment.events.length - 1];
+  const lastNormal = [...shipment.events]
+    .reverse()
+    .find((e) => STEPS.includes(e.status as (typeof STEPS)[number]));
+  const progressIdx = lastNormal ? STEPS.indexOf(lastNormal.status as (typeof STEPS)[number]) : 0;
 
   return (
     <main className="marketing min-h-dvh bg-bg text-ink">
@@ -64,8 +71,8 @@ export default async function TrackPage(props: { params: Promise<{ code: string 
         <div className="mt-10">
           <ol className="flex items-center">
             {STEPS.map((s, i) => {
-              const reached = !problem && deliveredIdx >= 0 ? i <= deliveredIdx : i <= (shipment.status === "CANCELLED" ? 0 : 3);
-              const isCurrent = deliveredIdx === i;
+              const reached = i <= progressIdx;
+              const isCurrent = !problem && progressIdx === i;
               return (
                 <li key={s} className={cx("flex items-center", i < STEPS.length - 1 && "flex-1")}>
                   <span className={cx(
@@ -75,7 +82,7 @@ export default async function TrackPage(props: { params: Promise<{ code: string 
                     {reached && !isCurrent ? "✓" : i + 1}
                   </span>
                   {i < STEPS.length - 1 && (
-                    <span className={cx("h-0.5 flex-1", reached && i < deliveredIdx ? "bg-brand/70" : "bg-line")} />
+                    <span className={cx("h-0.5 flex-1", reached && i < progressIdx ? "bg-brand/70" : "bg-line")} />
                   )}
                 </li>
               );
@@ -88,7 +95,7 @@ export default async function TrackPage(props: { params: Promise<{ code: string 
           </div>
         </div>
 
-        <section className="mt-10 grid gap-4 sm:grid-cols-3">
+        <section className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-line bg-surface p-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">From</p>
             <p className="mt-1.5 text-sm font-medium">{shipment.origin.name}</p>
@@ -103,6 +110,31 @@ export default async function TrackPage(props: { params: Promise<{ code: string 
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">On board</p>
             <p className="mt-1.5 text-sm font-medium">{shipment.driver?.user.name ?? "Awaiting driver"}</p>
             <p className="text-xs text-muted">{shipment.driver?.vehicle ? `${shipment.driver.vehicle.type} ${shipment.driver.vehicle.plateNo}` : "—"}</p>
+          </div>
+          <div className="rounded-xl border border-line bg-surface p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Live location</p>
+            {shipment.currentLat != null && shipment.currentLng != null ? (
+              <>
+                <p className="mt-1.5 text-sm font-medium tabular-nums">
+                  {shipment.currentLat.toFixed(4)}, {shipment.currentLng.toFixed(4)}
+                </p>
+                <p className="text-xs text-muted">
+                  {shipment.locationUpdatedAt
+                    ? `${minutesAgo(shipment.locationUpdatedAt) <= 10 ? "Updated" : "Last seen"} ${minutesAgo(shipment.locationUpdatedAt)} min ago`
+                    : "Pinned"}
+                </p>
+                <a
+                  href={osmUrl(shipment.currentLat, shipment.currentLng)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-block text-xs text-brand underline-offset-4 hover:underline"
+                >
+                  open map ↗
+                </a>
+              </>
+            ) : (
+              <p className="mt-1.5 text-sm text-muted">Waiting for the driver&apos;s first GPS ping.</p>
+            )}
           </div>
         </section>
 

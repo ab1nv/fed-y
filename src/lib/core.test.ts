@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { canTransition, nextActions, TRANSITIONS } from "./state-machine";
 import { computeRisk } from "./risk";
 import { hashPassword, verifyPassword } from "./password";
-import { loginSchema, signupSchema } from "./schemas";
-
+import { loginSchema, signupSchema, eventSchema } from "./schemas";
+import { indiaDateTimeInput, parseIndiaDateTime, startOfIndiaDay } from "./time";
 const H = 3600_000;
 const now = new Date("2026-09-07T12:00:00Z");
 
@@ -62,6 +62,14 @@ describe("schemas", () => {
   it("rejects short passwords", () => {
     expect(loginSchema.safeParse({ username: "admin", password: "short" }).success).toBe(false);
   });
+  it("accepts an event form with no note (status-only buttons send null)", () => {
+    expect(
+      eventSchema.safeParse({ shipmentId: "abc", status: "PICKED_UP", note: null, lat: undefined, lng: undefined }).success,
+    ).toBe(true);
+    expect(
+      eventSchema.safeParse({ shipmentId: "abc", status: "PICKED_UP", note: "gate code 42" }).success,
+    ).toBe(true);
+  });
   it("requires phone for drivers", () => {
     expect(
       signupSchema.safeParse({
@@ -73,5 +81,19 @@ describe("schemas", () => {
         name: "Ravi K", username: "ravi", email: "r@x.io", phone: "+91 9811022334", password: "abcdefgh", role: "DRIVER",
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("India time handling", () => {
+  it("treats datetime-local input as IST", () => {
+    expect(parseIndiaDateTime("2026-11-02T12:34").toISOString()).toBe("2026-11-02T07:04:00.000Z");
+  });
+  it("starts the day at IST midnight, not server midnight", () => {
+    expect(startOfIndiaDay(new Date("2026-11-01T20:00:00Z")).toISOString()).toBe(
+      "2026-11-01T18:30:00.000Z",
+    );
+  });
+  it("formats an instant back into the IST input value", () => {
+    expect(indiaDateTimeInput(new Date("2026-11-02T07:04:00Z"))).toBe("2026-11-02T12:34");
   });
 });
